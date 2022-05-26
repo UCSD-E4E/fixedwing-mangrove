@@ -4,42 +4,62 @@ import time
 import cv2
 import usb_trial
 import os
+from dronekit import connect
+import datetime
+import timeit
 GPIO.setwarnings(False) 
 GPIO.setmode(GPIO.BOARD) 
 GPIO.setup(10, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-
+vehicle = connect('/dev/ttyACM0', wait_ready = True, baud = 115200)
+e = datetime.datetime.now()
 cap = cv2.VideoCapture(0) # video capture source camera (Here webcam of laptop) 
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 3264)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 2448)
 
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)  # set new dimensionns to cam object (not cap)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+reset_time = 0 
 
 i = 1
 folder = 1
-j = 1
-while True: 
-    if GPIO.input(10) == GPIO.HIGH:
-        print("Button was pushed!")  
-        root = str((usb_trial.get_mount_points()[0][1]))
-        print(root)
-        #root = '/home/pi/Desktop/fixedwing-mangrove/'
-        path = root + '/folder'+str(folder)+'/'
-        
-        while(os.path.isdir(path)&j==1):
-            fold_dir = 'folder'+str(folder)
-            #print("%s exists",fold_dir)
-            folder+=1
-            path = root +'folder'+str(folder)
-        
-        if (j!=2):
-            os.mkdir(path)
-            os.chdir(path)
-        j =2 
-        
+
+try:
+    root = str((usb_trial.get_mount_points()[0][1]))
+    
+    #root = '/home/pi/Desktop/fixedwing-mangrove'
+    print(root)
+    path = root + '/flight'+str(folder)+'/'
+    while(os.path.isdir(path)):
+        #fold_dir = 'folder'+str(folder)
+        #print("%s exists",fold_dir)
+        folder+=1
+        #print('right before path')
+        path = root +'/flight'+str(folder)
+        #print('right after path')
+    os.mkdir(path)
+except:
+    path = ""
+    
+
+print("Ready for image")
+
+while True:
+    ret,frame = cap.read() # return a single frame in variable `frame`
+    #ims = cv2.resize(frame, (640, 480))
+    #cv2.imshow('preview', ims)
+    #if cv2.waitKey(1) & 0xFF == ord('q'):
+    #    break
+    if (GPIO.input(10) == GPIO.HIGH) and (time.time() > (reset_time + 1)):
+        print("Button was pushed!")
+        lat = str(vehicle.location.global_relative_frame.lat)
+        lon = str(vehicle.location.global_relative_frame.lon)
+        alt = str(vehicle.location.global_relative_frame.alt)
+        date = str(e.strftime("%Y-%m-%d %H:%M:%S"))
+        print(path)
+        cv2.imwrite(os.path.join(path, date+' '+lat+' '+lon+' '+alt+'.jpg'),frame)
+#         i+=1
+
             
-        ret,frame = cap.read() # return a single frame in variable `frame`
-        cv2.imwrite(str(i)+'.png',frame)
-        time.sleep(1)
-        i+=1
+        
+        
 
 
 
